@@ -6,8 +6,6 @@
     <title>技能丢不队</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        /* 👇 全屏背景图 */
         body {
             font-family: "微软雅黑", serif;
             padding: 60px;
@@ -17,11 +15,9 @@
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
-            background-repeat: no-repeat;
             background-color: rgba(255,255,255,0.85);
             background-blend-mode: lighten;
         }
-        
         h1 {
             font-size: 42px;
             margin-bottom: 50px;
@@ -105,10 +101,10 @@
             window.location.href = "group.html";
         }
         function loadGroupPhoto() {
-            const img = localStorage.getItem('groupPhoto');
             const container = document.getElementById('groupImgContainer');
-            if (img) {
-                container.innerHTML = `<img id="groupImg" src="${img}" alt="大合照" onclick="goToGroupPage()">`;
+            const photos = JSON.parse(localStorage.getItem('groupPhotos') || '[]');
+            if (photos.length > 0) {
+                container.innerHTML = `<img id="groupImg" src="${photos[0]}" alt="大合照" onclick="goToGroupPage()">`;
             } else {
                 container.innerHTML = '<p onclick="goToGroupPage()" style="cursor:pointer;">点击上传大合照</p>';
             }
