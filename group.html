@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>大合照</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{
+            font-family:微软雅黑;
+            padding:40px;text-align:center;
+            background:url(https://picsum.photos/1920/1080?blur=2);
+            background-size:cover;
+            background-attachment:fixed;
+            background-color:rgba(255,255,255,0.85);
+            background-blend-mode:lighten;
+        }
+        .back{padding:8px 16px;background:#3498db;color:white;border:none;border-radius:4px;cursor:pointer}
+        #photos{display:flex;flex-wrap:wrap;gap:20px;justify-content:center;margin-top:30px}
+        #photos img{max-width:300px;border-radius:10px}
+        .upload{margin:20px 0}
+        button{padding:10px 20px;background:#3498db;color:white;border:none;border-radius:6px;cursor:pointer}
+    </style>
+</head>
+<body>
+    <button class="back" onclick="location.href='index.html'">← 返回</button>
+    <h1>团队大合照</h1>
+    <div class="upload">
+        <input type="file" id="f" multiple accept="image/*">
+        <button onclick="upload()">上传并保存</button>
+    </div>
+    <div id="photos"></div>
+
+<script>
+const OWNER = "xiuzou";
+const REPO = "team-web";
+const TOKEN = "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";
+const PATH = "data/group.json";
+
+async function load() {
+    try {
+        const r = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`);
+        const data = await r.json();
+        window.sha = data.sha;
+        const list = JSON.parse(atob(data.content));
+        const box = document.getElementById("photos");
+        box.innerHTML = "";
+        list.forEach(p => {
+            const img = document.createElement("img");
+            img.src = p;
+            box.appendChild(img);
+        });
+    } catch (e) {
+        await createFile();
+    }
+}
+
+async function createFile() {
+    await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`, {
+        method: "PUT",
+        headers: { Authorization: "token " + TOKEN },
+        body: JSON.stringify({
+            message: "init",
+            content: btoa("[]")
+        })
+    });
+    load();
+}
+
+async function upload() {
+    const files = document.getElementById("f").files;
+    if (!files.length) return alert("请选择图片");
+
+    const old = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`);
+    const oldData = await old.json();
+    const sha = oldData.sha;
+    const list = JSON.parse(atob(oldData.content));
+
+    for (let file of files) {
+        const p = await new Promise(r => {
+            const fr = new FileReader();
+            fr.onload = e => r(e.target.result);
+            fr.readAsDataURL(file);
+        });
+        list.push(p);
+    }
+
+    await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`, {
+        method: "PUT",
+        headers: { Authorization: "token " + TOKEN },
+        body: JSON.stringify({
+            message: "upload",
+            sha: sha,
+            content: btoa(JSON.stringify(list))
+        })
+    });
+
+    alert("上传成功！所有人都能看见！");
+    load();
+}
+
+load();
+</script>
+</body>
+</html>
