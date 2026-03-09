@@ -1,104 +1,82 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <title>大合照</title>
-    <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-        body{
-            font-family:微软雅黑;
-            padding:40px;text-align:center;
-            background:url(https://picsum.photos/1920/1080?blur=2);
-            background-size:cover;
-            background-attachment:fixed;
-            background-color:rgba(255,255,255,0.85);
-            background-blend-mode:lighten;
-        }
-        .back{padding:8px 16px;background:#3498db;color:white;border:none;border-radius:4px;cursor:pointer}
-        #photos{display:flex;flex-wrap:wrap;gap:20px;justify-content:center;margin-top:30px}
-        #photos img{max-width:300px;border-radius:10px}
-        .upload{margin:20px 0}
-        button{padding:10px 20px;background:#3498db;color:white;border:none;border-radius:6px;cursor:pointer}
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>大合照</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{padding:40px;text-align:center;background:#f7f7f7}
+  .back{margin:10px;padding:8px 16px}
+  #photos{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:20px}
+  #photos img{max-width:200px;border-radius:8px}
+  .upload{margin:20px 0}
+</style>
 </head>
 <body>
-    <button class="back" onclick="location.href='index.html'">← 返回</button>
-    <h1>团队大合照</h1>
-    <div class="upload">
-        <input type="file" id="f" multiple accept="image/*">
-        <button onclick="upload()">上传并保存</button>
-    </div>
-    <div id="photos"></div>
+
+<button class="back" onclick="location.href='index.html'">返回主页</button>
+<h1>大合照（已自动压缩）</h1>
+
+<div class="upload">
+  <input type="file" id="file" accept="image/*" multiple>
+  <button onclick="upload()">上传并保存</button>
+</div>
+
+<div id="photos"></div>
 
 <script>
-const OWNER = "xiuzou";
-const REPO = "team-web";
-const TOKEN = "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";
-const PATH = "data/group.json";
-
-async function load() {
-    try {
-        const r = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`);
-        const data = await r.json();
-        window.sha = data.sha;
-        const list = JSON.parse(atob(data.content));
-        const box = document.getElementById("photos");
-        box.innerHTML = "";
-        list.forEach(p => {
-            const img = document.createElement("img");
-            img.src = p;
-            box.appendChild(img);
-        });
-    } catch (e) {
-        await createFile();
+// 图片压缩
+function compressImage(file) {
+  return new Promise(resolve => {
+    const reader = new FileReader()
+    reader.onload = e => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let w = img.width, h = img.height
+        if (w > 1000) { h = h * 1000 / w; w = 1000 }
+        canvas.width = w; canvas.height = h
+        canvas.getContext('2d').drawImage(img,0,0,w,h)
+        canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.6)
+      }
+      img.src = e.target.result
     }
+    reader.readAsDataURL(file)
+  })
 }
 
-async function createFile() {
-    await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`, {
-        method: "PUT",
-        headers: { Authorization: "token " + TOKEN },
-        body: JSON.stringify({
-            message: "init",
-            content: btoa("[]")
-        })
-    });
-    load();
+// 显示图片
+function show() {
+  const list = JSON.parse(localStorage.getItem('group') || '[]')
+  const box = document.getElementById('photos')
+  box.innerHTML = ''
+  list.forEach(u => {
+    const img = document.createElement('img')
+    img.src = u
+    box.appendChild(img)
+  })
 }
 
+// 上传 + 压缩 + 保存
 async function upload() {
-    const files = document.getElementById("f").files;
-    if (!files.length) return alert("请选择图片");
+  const files = document.getElementById('file').files
+  if (!files.length) return alert('请选图')
 
-    const old = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`);
-    const oldData = await old.json();
-    const sha = oldData.sha;
-    const list = JSON.parse(atob(oldData.content));
+  const list = JSON.parse(localStorage.getItem('group') || '[]')
 
-    for (let file of files) {
-        const p = await new Promise(r => {
-            const fr = new FileReader();
-            fr.onload = e => r(e.target.result);
-            fr.readAsDataURL(file);
-        });
-        list.push(p);
-    }
+  for (let i = 0; i < files.length; i++) {
+    const blob = await compressImage(files[i])
+    const url = URL.createObjectURL(blob)
+    list.push(url)
+  }
 
-    await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`, {
-        method: "PUT",
-        headers: { Authorization: "token " + TOKEN },
-        body: JSON.stringify({
-            message: "upload",
-            sha: sha,
-            content: btoa(JSON.stringify(list))
-        })
-    });
-
-    alert("上传成功！所有人都能看见！");
-    load();
+  localStorage.setItem('group', JSON.stringify(list))
+  alert('上传并压缩成功！')
+  show()
 }
 
-load();
+show()
 </script>
 </body>
 </html>
