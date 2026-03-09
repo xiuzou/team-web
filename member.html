@@ -1,9 +1,8 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>成员资料</title>
+    <title>成员</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         body{
@@ -11,102 +10,86 @@
             padding:40px;
             background:url(https://picsum.photos/1920/1080?blur=2);
             background-size:cover;
-            background-position:center;
             background-attachment:fixed;
             background-color:rgba(255,255,255,0.85);
             background-blend-mode:lighten;
         }
-        .card{
-            background:rgba(255,255,255,0.7);
-            padding:30px;
-            border-radius:16px;
-            max-width:800px;
-            margin:40px auto;
-        }
-        h1{
-            text-align:center;
-            margin-bottom:20px;
-        }
-        .back{
-            padding:8px 16px;
-            background:#3498db;
-            color:white;
-            border:none;
-            border-radius:6px;
-            cursor:pointer;
-        }
-        #avatar{
-            max-width:220px;
-            border-radius:10px;
-            margin:10px 0;
-        }
-        textarea{
-            width:100%;
-            height:200px;
-            padding:12px;
-            border-radius:8px;
-            margin-top:10px;
-        }
-        button{
-            padding:10px 20px;
-            background:#27ae60;
-            color:white;
-            border:none;
-            border-radius:8px;
-            cursor:pointer;
-            margin:5px;
-        }
+        .back{padding:8px 16px;background:#3498db;color:white;border:none;border-radius:4px;cursor:pointer}
+        .card{background:rgba(255,255,255,0.8);padding:30px;border-radius:16px;max-width:700px;margin:40px auto}
+        img{max-width:200px;border-radius:10px;margin:10px 0}
+        textarea{width:100%;height:200px;margin:10px 0;padding:10px}
+        button{padding:10px 20px;background:#27ae60;color:white;border:none;border-radius:6px;cursor:pointer}
     </style>
 </head>
 <body>
-
-<button class="back" onclick="location.href='index.html'">← 返回</button>
-<div class="card">
-  <h1 id="name">成员</h1>
-  <input type="file" id="photoInput" accept="image/*">
-  <button onclick="savePhoto()">上传并保存照片</button>
-  <div id="photoArea"></div>
-
-  <h3>个人履历</h3>
-  <textarea id="intro"></textarea>
-  <button onclick="saveIntro()">保存履历</button>
-</div>
+    <button class="back" onclick="location.href='index.html'">← 返回</button>
+    <div class="card">
+        <h1 id="name"></h1>
+        <input type="file" id="p" accept="image/*">
+        <button onclick="upPhoto()">上传照片</button>
+        <div id="img"></div>
+        <h3>履历</h3>
+        <textarea id="intro"></textarea>
+        <button onclick="save()">保存履历</button>
+    </div>
 
 <script>
-const params = new URLSearchParams(location.search)
-const name = params.get('name')
-document.getElementById('name').innerText = name
+const OWNER = "xiuzou";
+const REPO = "team-web";
+const TOKEN = "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";
+const name = new URLSearchParams(location.search).get("name");
+document.getElementById("name").innerText = name;
+const PATH = `data/member_${name}.json`;
 
-function load() {
-  const img = localStorage.getItem(name + '_img')
-  const text = localStorage.getItem(name + '_text')
-  if (img) {
-    document.getElementById('photoArea').innerHTML = `<img id="avatar" src="${img}">`
-  }
-  if (text) {
-    document.getElementById('intro').value = text
-  }
+async function load() {
+    try {
+        const r = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`);
+        const d = await r.json();
+        window.sha = d.sha;
+        const c = JSON.parse(atob(d.content));
+        if(c.img) document.getElementById("img").innerHTML=`<img src="${c.img}">`;
+        if(c.intro) document.getElementById("intro").value=c.intro;
+    }catch(e){}
 }
 
-function savePhoto() {
-  const file = document.getElementById('photoInput').files[0]
-  if (!file) return alert('请选择图片')
-  const fr = new FileReader()
-  fr.onload = function () {
-    localStorage.setItem(name + '_img', fr.result)
-    load()
-    alert('照片保存成功！')
-  }
-  fr.readAsDataURL(file)
+async function upPhoto() {
+    const file = document.getElementById("p").files[0];
+    if(!file){alert("选图");return}
+    const img = await new Promise(r=>{
+        const fr=new FileReader();
+        fr.onload=e=>r(e.target.result);
+        fr.readAsDataURL(file);
+    });
+    const intro = document.getElementById("intro").value;
+    await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`,{
+        method:"PUT",
+        headers:{Authorization:"token "+TOKEN},
+        body:JSON.stringify({
+            message:"photo",
+            sha:window.sha,
+            content:btoa(JSON.stringify({img,intro}))
+        })
+    });
+    alert("照片云端保存成功！");
+    load();
 }
 
-function saveIntro() {
-  const text = document.getElementById('intro').value
-  localStorage.setItem(name + '_text', text)
-  alert('履历保存成功！')
+async function save() {
+    const intro = document.getElementById("intro").value;
+    const img = document.querySelector("img")?.src||"";
+    await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`,{
+        method:"PUT",
+        headers:{Authorization:"token "+TOKEN},
+        body:JSON.stringify({
+            message:"save",
+            sha:window.sha,
+            content:btoa(JSON.stringify({img,intro}))
+        })
+    });
+    alert("保存成功！");
+    load();
 }
-
-load()
+load();
 </script>
 </body>
 </html>

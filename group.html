@@ -1,176 +1,86 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>团队大合照</title>
+    <title>大合照</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: "微软雅黑", serif;
-            padding: 40px;
-            text-align: center;
-            background-image: url('https://picsum.photos/1920/1080?blur=2');
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-            background-color: rgba(255,255,255,0.85);
-            background-blend-mode: lighten;
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{
+            font-family:微软雅黑;
+            padding:40px;text-align:center;
+            background:url(https://picsum.photos/1920/1080?blur=2);
+            background-size:cover;
+            background-attachment:fixed;
+            background-color:rgba(255,255,255,0.85);
+            background-blend-mode:lighten;
         }
-        .back-btn {
-            padding: 8px 16px;
-            background: #3498db;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-bottom: 20px;
-        }
-        h1 {
-            margin-bottom: 20px;
-            background: rgba(255,255,255,0.6);
-            padding: 20px;
-            border-radius: 12px;
-            display: inline-block;
-        }
-        #groupImgContainer {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 20px;
-            margin-top: 30px;
-        }
-        #groupImgContainer img {
-            max-width: 300px;
-            max-height: 300px;
-            border-radius: 10px;
-            box-shadow: 0 3px 15px rgba(0,0,0,0.15);
-        }
-        .upload-area {
-            margin: 20px 0;
-            background: rgba(255,255,255,0.6);
-            padding: 20px;
-            border-radius: 12px;
-            display: inline-block;
-        }
-        input[type="file"] {
-            margin: 10px 0;
-            padding: 8px;
-        }
-        button {
-            padding: 10px 20px;
-            background: #3498db;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-        #tip {
-            color: #e74c3c;
-            margin-top: 10px;
-        }
+        .back{padding:8px 16px;background:#3498db;color:white;border:none;border-radius:4px;cursor:pointer}
+        #photos{display:flex;flex-wrap:wrap;gap:20px;justify-content:center;margin-top:30px}
+        #photos img{max-width:300px;border-radius:10px}
+        .upload{margin:20px 0}
+        button{padding:10px 20px;background:#3498db;color:white;border:none;border-radius:6px;cursor:pointer}
     </style>
 </head>
 <body>
-    <button class="back-btn" onclick="goBack()">← 返回主页</button>
-    <h1>团队大合照（所有人可见）</h1>
-
-    <div class="upload-area">
-        <input type="file" id="groupFile" accept="image/*" multiple>
-        <button onclick="uploadGroupPhoto()">上传到云端</button>
-        <p id="tip"></p>
+    <button class="back" onclick="location.href='index.html'">← 返回</button>
+    <h1>团队大合照（云端存储）</h1>
+    <div class="upload">
+        <input type="file" id="f" multiple accept="image/*">
+        <button onclick="upload()">上传并保存到云端</button>
     </div>
-    
-    <div id="groupImgContainer"></div>
+    <div id="photos"></div>
 
-    <script>
-        // 图床上传接口（免费、无限制、无需token）
-        async function uploadToCloud(file) {
-            const formData = new FormData();
-            formData.append('file', file);
-            const res = await fetch('https://tmpfiles.org/api/v1/upload', {
-                method: 'POST',
-                body: formData
-            });
-            const data = await res.json();
-            if (data.success) {
-                return data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
-            }
-            throw new Error(data.error || '上传失败');
-        }
+<script>
+const OWNER = "xiuzou";
+const REPO = "team-web";
+const TOKEN = "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";
+const PATH = "data/group.json";
 
-        function goBack() {
-            window.location.href = "./index.html";
-        }
+async function load() {
+    const r = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`);
+    const data = await r.json();
+    window.sha = data.sha;
+    const list = JSON.parse(atob(data.content));
+    const box = document.getElementById("photos");
+    box.innerHTML = "";
+    list.forEach(p => {
+        const img = document.createElement("img");
+        img.src = p;
+        box.appendChild(img);
+    });
+}
 
-        // 加载云端照片
-        function loadGroupPhotos() {
-            const container = document.getElementById('groupImgContainer');
-            const tip = document.getElementById('tip');
-            container.innerHTML = '';
-            tip.innerText = '';
+async function upload() {
+    const files = document.getElementById("f").files;
+    if(!files.length){alert("选图");return}
 
-            try {
-                const photos = JSON.parse(localStorage.getItem('groupCloudPhotos') || '[]');
-                if (photos.length === 0) {
-                    container.innerHTML = '<p>暂无大合照，请上传</p>';
-                    return;
-                }
-                photos.forEach(src => {
-                    const img = document.createElement('img');
-                    img.src = src;
-                    container.appendChild(img);
-                });
-            } catch (e) {
-                tip.innerText = `加载失败：${e.message}`;
-            }
-        }
+    const old = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`);
+    const oldData = await old.json();
+    const sha = oldData.sha;
+    const list = JSON.parse(atob(oldData.content));
 
-        // 上传到云端
-        async function uploadGroupPhoto() {
-            const input = document.getElementById('groupFile');
-            const files = input.files;
-            const tip = document.getElementById('tip');
-            tip.innerText = '';
+    for(let file of files){
+        const p = await new Promise(r=>{
+            const fr=new FileReader();
+            fr.onload=e=>r(e.target.result);
+            fr.readAsDataURL(file);
+        });
+        list.push(p);
+    }
 
-            if (!files.length) {
-                tip.innerText = "请先选择要上传的图片！";
-                return;
-            }
-
-            let existPhotos = [];
-            try {
-                existPhotos = JSON.parse(localStorage.getItem('groupCloudPhotos') || '[]');
-            } catch (e) {
-                existPhotos = [];
-            }
-
-            let successCount = 0;
-            const totalCount = files.length;
-            tip.innerText = `正在上传...0/${totalCount}`;
-
-            for (let i = 0; i < files.length; i++) {
-                try {
-                    const cloudUrl = await uploadToCloud(files[i]);
-                    existPhotos.push(cloudUrl);
-                    successCount++;
-                    tip.innerText = `正在上传...${successCount}/${totalCount}`;
-                } catch (e) {
-                    tip.innerText += `第${i+1}张图上传失败：${e.message}\n`;
-                }
-            }
-
-            try {
-                localStorage.setItem('groupCloudPhotos', JSON.stringify(existPhotos));
-                loadGroupPhotos();
-                input.value = '';
-                tip.innerText = `上传成功！共保存了${successCount}/${totalCount}张照片，所有人都能查看`;
-            } catch (e) {
-                tip.innerText = `保存失败：${e.message}`;
-            }
-        }
-
-        window.onload = loadGroupPhotos;
-    </script>
+    await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`,{
+        method:"PUT",
+        headers:{Authorization:"token "+TOKEN},
+        body:JSON.stringify({
+            message:"upload",
+            sha:sha,
+            content:btoa(JSON.stringify(list))
+        })
+    });
+    alert("上传成功！所有人都能看见！");
+    load();
+}
+load();
+</script>
 </body>
 </html>
