@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>技能丢不队</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{
+            font-family:微软雅黑;
+            padding:60px;
+            background:url(https://picsum.photos/1920/1080?blur=2);
+            background-size:cover;
+            background-attachment:fixed;
+            background-color:rgba(255,255,255,0.85);
+            background-blend-mode:lighten;
+        }
+        h1{text-align:center;margin-bottom:50px}
+        .member-list{
+            background:rgba(255,255,255,0.7);
+            padding:30px;border-radius:12px;margin-bottom:40px
+        }
+        .member-list li{
+            font-size:20px;margin:10px 0;cursor:pointer
+        }
+        .group-photo{
+            background:rgba(255,255,255,0.7);
+            padding:30px;border-radius:12px;text-align:right
+        }
+        #cover{max-width:300px;border-radius:10px}
+    </style>
+</head>
+<body>
+    <h1>技能丢不队</h1>
+    <div class="member-list">
+        <ul>
+            <li onclick="go('刘洋')">刘洋</li>
+            <li onclick="go('吕浩')">吕浩</li>
+            <li onclick="go('汪偌萱')">汪偌萱</li>
+            <li onclick="go('夏梓鸿')">夏梓鸿</li>
+            <li onclick="go('曾译樊')">曾译樊</li>
+        </ul>
+    </div>
+    <div class="group-photo" onclick="location.href='group.html'">
+        <h2>大合照</h2>
+        <div id="cover"></div>
+    </div>
+
+<script>
+const OWNER = "xiuzou";
+const REPO = "team-web";
+const TOKEN = "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";
+
+async function load() {
+    try {
+        const r = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/data/group.json`);
+        const data = await r.json();
+        const list = JSON.parse(atob(data.content));
+        if (list.length) document.getElementById("cover").innerHTML = `<img src="${list[0]}" width=300>`;
+    } catch (e) {}
+}
+function go(name) {
+    location.href = `member.html?name=${name}`;
+}
+load();
+</script>
+</body>
+</html>
