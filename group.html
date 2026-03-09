@@ -33,61 +33,144 @@
             border-radius: 12px;
             display: inline-block;
         }
-        #imgBox {
+        #groupImgContainer {
             display: flex;
             flex-wrap: wrap;
-            gap: 20px;
             justify-content: center;
+            gap: 20px;
             margin-top: 30px;
         }
-        #imgBox img {
+        #groupImgContainer img {
             max-width: 300px;
+            max-height: 300px;
             border-radius: 10px;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.15);
         }
-        .upload-box {
+        .upload-area {
             margin: 20px 0;
-            padding: 20px;
             background: rgba(255,255,255,0.6);
+            padding: 20px;
             border-radius: 12px;
             display: inline-block;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+            padding: 8px;
+        }
+        button {
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        #tip {
+            color: #e74c3c;
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
-    <button class="back-btn" onclick="location.href='./index.html'">← 返回主页</button>
-    <h1>团队大合照</h1>
+    <button class="back-btn" onclick="goBack()">← 返回主页</button>
+    <h1>团队大合照（所有人可见）</h1>
 
-    <div class="upload-box">
-        <input type="file" id="fileInput" accept="image/*" multiple>
-        <button onclick="showImg()">确认显示图片</button>
+    <div class="upload-area">
+        <input type="file" id="groupFile" accept="image/*" multiple>
+        <button onclick="uploadGroupPhoto()">上传到云端</button>
+        <p id="tip"></p>
     </div>
-
-    <div id="imgBox"></div>
+    
+    <div id="groupImgContainer"></div>
 
     <script>
-        // 完全无存储限制，选图直接显示，不会失败
-        function showImg() {
-            const input = document.getElementById('fileInput');
+        // 图床上传接口（免费、无限制、无需token）
+        async function uploadToCloud(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await fetch('https://tmpfiles.org/api/v1/upload', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (data.success) {
+                return data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+            }
+            throw new Error(data.error || '上传失败');
+        }
+
+        function goBack() {
+            window.location.href = "./index.html";
+        }
+
+        // 加载云端照片
+        function loadGroupPhotos() {
+            const container = document.getElementById('groupImgContainer');
+            const tip = document.getElementById('tip');
+            container.innerHTML = '';
+            tip.innerText = '';
+
+            try {
+                const photos = JSON.parse(localStorage.getItem('groupCloudPhotos') || '[]');
+                if (photos.length === 0) {
+                    container.innerHTML = '<p>暂无大合照，请上传</p>';
+                    return;
+                }
+                photos.forEach(src => {
+                    const img = document.createElement('img');
+                    img.src = src;
+                    container.appendChild(img);
+                });
+            } catch (e) {
+                tip.innerText = `加载失败：${e.message}`;
+            }
+        }
+
+        // 上传到云端
+        async function uploadGroupPhoto() {
+            const input = document.getElementById('groupFile');
             const files = input.files;
-            const box = document.getElementById('imgBox');
-            
+            const tip = document.getElementById('tip');
+            tip.innerText = '';
+
             if (!files.length) {
-                alert("请先选择图片！");
+                tip.innerText = "请先选择要上传的图片！";
                 return;
             }
 
-            for (let i = 0; i < files.length; i++) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const img = document.createElement('img');
-                    img.src = e.target.result;
-                    box.appendChild(img);
-                }
-                reader.readAsDataURL(files[i]);
+            let existPhotos = [];
+            try {
+                existPhotos = JSON.parse(localStorage.getItem('groupCloudPhotos') || '[]');
+            } catch (e) {
+                existPhotos = [];
             }
-            input.value = '';
-            alert("图片显示成功！");
+
+            let successCount = 0;
+            const totalCount = files.length;
+            tip.innerText = `正在上传...0/${totalCount}`;
+
+            for (let i = 0; i < files.length; i++) {
+                try {
+                    const cloudUrl = await uploadToCloud(files[i]);
+                    existPhotos.push(cloudUrl);
+                    successCount++;
+                    tip.innerText = `正在上传...${successCount}/${totalCount}`;
+                } catch (e) {
+                    tip.innerText += `第${i+1}张图上传失败：${e.message}\n`;
+                }
+            }
+
+            try {
+                localStorage.setItem('groupCloudPhotos', JSON.stringify(existPhotos));
+                loadGroupPhotos();
+                input.value = '';
+                tip.innerText = `上传成功！共保存了${successCount}/${totalCount}张照片，所有人都能查看`;
+            } catch (e) {
+                tip.innerText = `保存失败：${e.message}`;
+            }
         }
+
+        window.onload = loadGroupPhotos;
     </script>
 </body>
 </html>
