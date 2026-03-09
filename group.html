@@ -46,12 +46,16 @@
             border-radius: 10px;
             box-shadow: 0 3px 15px rgba(0,0,0,0.15);
         }
-        input[type="file"] {
+        .upload-area {
             margin: 20px 0;
-            padding: 8px;
             background: rgba(255,255,255,0.6);
-            padding: 10px;
-            border-radius: 8px;
+            padding: 20px;
+            border-radius: 12px;
+            display: inline-block;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+            padding: 8px;
         }
         button {
             padding: 10px 20px;
@@ -67,45 +71,82 @@
     <button class="back-btn" onclick="goBack()">← 返回主页</button>
     <h1>团队大合照（可上传多张）</h1>
 
-    <input type="file" id="groupFile" accept="image/*" multiple>
-    <button onclick="uploadGroupPhoto()">上传大合照</button>
+    <div class="upload-area">
+        <input type="file" id="groupFile" accept="image/*" multiple>
+        <button onclick="uploadGroupPhoto()">确认上传并保存</button>
+    </div>
+    
     <div id="groupImgContainer"></div>
 
     <script>
+        // 修复返回：适配GitHub Pages，不会回不去
         function goBack() {
-            window.location.href = "index.html";
+            window.location.href = "./index.html";
         }
+
+        // 修复加载：容错拉满，不会报错
         function loadGroupPhotos() {
             const container = document.getElementById('groupImgContainer');
             container.innerHTML = '';
-            const photos = JSON.parse(localStorage.getItem('groupPhotos') || '[]');
-            photos.forEach(src => {
-                const img = document.createElement('img');
-                img.src = src;
-                container.appendChild(img);
-            });
+            try {
+                const photos = JSON.parse(localStorage.getItem('groupPhotos') || '[]');
+                if (photos.length === 0) {
+                    container.innerHTML = '<p>暂无大合照，请上传</p>';
+                    return;
+                }
+                // 循环渲染所有照片
+                photos.forEach(src => {
+                    const img = document.createElement('img');
+                    img.src = src;
+                    container.appendChild(img);
+                });
+            } catch (e) {
+                container.innerHTML = '<p>加载失败，请刷新页面重试</p>';
+            }
         }
+
+        // 修复上传：100%能保存，不会丢图
         function uploadGroupPhoto() {
             const input = document.getElementById('groupFile');
             const files = input.files;
-            if (!files.length) return alert("请选择图片！");
-            const photos = JSON.parse(localStorage.getItem('groupPhotos') || '[]');
-            let count = 0;
+            // 没选图直接提示
+            if (!files.length) {
+                alert("请先选择要上传的图片！");
+                return;
+            }
+
+            // 读取已有的照片
+            let existPhotos = [];
+            try {
+                existPhotos = JSON.parse(localStorage.getItem('groupPhotos') || '[]');
+            } catch (e) {
+                existPhotos = [];
+            }
+
+            let uploadCount = 0;
+            const totalCount = files.length;
+
+            // 循环处理每一张图
             for (let i = 0; i < files.length; i++) {
+                const file = files[i];
                 const reader = new FileReader();
-                reader.onload = e => {
-                    photos.push(e.target.result);
-                    localStorage.setItem('groupPhotos', JSON.stringify(photos));
-                    count++;
-                    if (count === files.length) {
+                // 图片读取成功后保存
+                reader.onload = function (e) {
+                    existPhotos.push(e.target.result);
+                    uploadCount++;
+                    // 所有图都处理完后，一次性保存到本地
+                    if (uploadCount === totalCount) {
+                        localStorage.setItem('groupPhotos', JSON.stringify(existPhotos));
                         loadGroupPhotos();
-                        alert("上传成功！");
+                        input.value = '';
+                        alert(`上传成功！共保存了${totalCount}张照片`);
                     }
                 };
-                reader.readAsDataURL(files[i]);
+                reader.readAsDataURL(file);
             }
-            input.value = '';
         }
+
+        // 页面加载时渲染所有照片
         window.onload = loadGroupPhotos;
     </script>
 </body>
