@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大合照</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        /* 👇 背景图 */
+        body {
+            font-family: "微软雅黑", serif;
+            padding: 40px;
+            text-align: center;
+            background-image: url('https://picsum.photos/1920/1080?blur=2');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-color: rgba(255,255,255,0.85);
+            background-blend-mode: lighten;
+        }
+        
+        .back-btn {
+            padding: 8px 16px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        h1 {
+            margin-bottom: 30px;
+            background: rgba(255,255,255,0.6);
+            padding: 20px;
+            border-radius: 12px;
+            display: inline-block;
+        }
+        #groupImg {
+            max-width: 90%;
+            max-height: 70vh;
+            border-radius: 10px;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.15);
+        }
+        input[type="file"] {
+            margin: 20px 0;
+            padding: 8px;
+            background: rgba(255,255,255,0.6);
+            padding: 10px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <button class="back-btn" onclick="goBack()">← 返回主页</button>
+    <h1>团队大合照</h1>
+
+    <input type="file" id="groupFile" accept="image/*" onchange="uploadGroupPhoto()">
+    <div id="groupImgContainer"></div>
+
+    <script>
+        function goBack() {
+            window.location.href = "index.html";
+        }
+        function loadGroupPhoto() {
+            const img = localStorage.getItem('groupPhoto');
+            const container = document.getElementById('groupImgContainer');
+            if (img) {
+                container.innerHTML = `<img id="groupImg" src="${img}" alt="大合照">`;
+            } else {
+                container.innerHTML = '<p>暂无合照，请上传</p>';
+            }
+        }
+        function uploadGroupPhoto() {
+            const input = document.getElementById('groupFile');
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                localStorage.setItem('groupPhoto', e.target.result);
+                loadGroupPhoto();
+                input.value = '';
+            };
+            reader.readAsDataURL(file);
+        }
+        window.onload = loadGroupPhoto;
+    </script>
+</body>
+</html>

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="pageTitle">成员详情</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        /* 👇 背景图 */
+        body {
+            font-family: "微软雅黑", serif;
+            padding: 40px;
+            max-width: 900px;
+            margin: 0 auto;
+            background-image: url('https://picsum.photos/1920/1080?blur=2');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-color: rgba(255,255,255,0.85);
+            background-blend-mode: lighten;
+        }
+        
+        h1 {
+            font-size: 36px;
+            margin-bottom: 30px;
+            background: rgba(255,255,255,0.6);
+            padding: 20px;
+            border-radius: 12px;
+            display: inline-block;
+        }
+        .back-btn {
+            padding: 8px 16px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        .member-content {
+            display: flex;
+            gap: 40px;
+            margin-top: 30px;
+            background: rgba(255,255,255,0.6);
+            padding: 30px;
+            border-radius: 12px;
+        }
+        .photo-area {
+            flex: 1;
+        }
+        .info-area {
+            flex: 2;
+        }
+        #memberImg {
+            max-width: 250px;
+            max-height: 300px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            resize: vertical;
+        }
+        button {
+            padding: 10px 20px;
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+            padding: 8px;
+        }
+    </style>
+</head>
+<body>
+    <button class="back-btn" onclick="goBack()">← 返回主页</button>
+    <h1 id="memberName">成员</h1>
+
+    <div class="member-content">
+        <div class="photo-area">
+            <input type="file" id="memberFile" accept="image/*" onchange="uploadMemberPhoto()">
+            <div id="memberImgContainer"></div>
+        </div>
+        <div class="info-area">
+            <h3>个人履历</h3>
+            <textarea id="resume" placeholder="请输入个人履历..."></textarea>
+            <button onclick="saveResume()">保存履历</button>
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const memberName = urlParams.get('name');
+        document.getElementById('memberName').textContent = memberName;
+        document.getElementById('pageTitle').textContent = `${memberName} - 技能丢不队`;
+
+        function goBack() {
+            window.location.href = 'index.html';
+        }
+        function loadMemberData() {
+            const img = localStorage.getItem(`${memberName}_photo`);
+            const resume = localStorage.getItem(`${memberName}_resume`);
+            const imgContainer = document.getElementById('memberImgContainer');
+            const resumeText = document.getElementById('resume');
+            if (img) {
+                imgContainer.innerHTML = `<img id="memberImg" src="${img}" alt="${memberName}照片">`;
+            } else {
+                imgContainer.innerHTML = '<p>暂无照片，请上传</p>';
+            }
+            if (resume) {
+                resumeText.value = resume;
+            }
+        }
+        function uploadMemberPhoto() {
+            const input = document.getElementById('memberFile');
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                localStorage.setItem(`${memberName}_photo`, e.target.result);
+                loadMemberData();
+                input.value = '';
+            };
+            reader.readAsDataURL(file);
+        }
+        function saveResume() {
+            const resume = document.getElementById('resume').value;
+            localStorage.setItem(`${memberName}_resume`, resume);
+            alert('履历保存成功！');
+        }
+        window.onload = loadMemberData;
+    </script>
+</body>
+</html>
