@@ -87,15 +87,18 @@
     </div>
 
     <script>
+        // 已填好你的密钥，无需修改
         const IMGBB_KEY = "aceb30e32004fff42105312105416d1d";
         const JSONBIN_KEY = "$2a$10$udvwVnoyqjR54j7Pm7pdheeur4XmJN0cmI8fo2Mouqhb5K8cN6sHO";
         const BIN_ID = "69af813bae596e708f731d1b";
 
+        // 随机背景
         function setRandomBackground() {
             const random = Math.floor(Math.random() * 1000);
             document.body.style.backgroundImage = `url(https://picsum.photos/1920/1080?random=${random})`;
         }
 
+        // 跳转功能
         function goToMember(name) {
             window.location.href = `./member.html?name=${encodeURIComponent(name)}`;
         }
@@ -103,6 +106,7 @@
             window.location.href = "./group.html";
         }
 
+        // 加载大合照封面（终极容错）
         async function loadGroupCover() {
             const container = document.getElementById('groupImgContainer');
             try {
@@ -110,7 +114,7 @@
                     headers: { "X-Master-Key": JSONBIN_KEY }
                 });
                 const data = await res.json();
-                const photos = data?.record?.groupPhotos || [];
+                const photos = (data && data.record && data.record.groupPhotos) || [];
                 if (photos.length > 0) {
                     container.innerHTML = `<img id="groupImg" src="${photos[0]}" alt="大合照" style="max-width:400px;border-radius:8px;">`;
                 } else {
@@ -121,6 +125,7 @@
             }
         }
 
+        // 初始化
         setRandomBackground();
         window.onload = loadGroupCover;
     </script>
