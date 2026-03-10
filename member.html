@@ -1,135 +1,203 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>成员资料</title>
-<style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{
-        font-family:微软雅黑;
-        padding:40px;
-        background-size:cover;
-        background-attachment:fixed;
-        background-position:center;
-        background-color:rgba(255,255,255,0.85);
-        background-blend-mode:lighten;
-        min-height:100vh;
-    }
-    .back{padding:8px 16px;background:#3498db;color:white;border:none;border-radius:6px;cursor:pointer}
-    .card{background:rgba(255,255,255,0.7);padding:30px;border-radius:16px;max-width:700px;margin:40px auto;text-align:center}
-    h1{margin:20px 0}
-    #avatar{max-width:220px;border-radius:10px;margin:15px 0}
-    textarea{width:100%;height:200px;padding:12px;border-radius:8px;margin:10px 0}
-    button{padding:10px 20px;background:#27ae60;color:white;border:none;border-radius:8px;cursor:pointer;margin:5px}
-    .delete-btn{background:#e74c3c}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>成员资料</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{
+            font-family: 微软雅黑;
+            padding:40px;
+            background-size:cover;
+            background-attachment:fixed;
+            background-position:center;
+            background-color:rgba(255,255,255,0.85);
+            background-blend-mode:lighten;
+            min-height:100vh;
+        }
+        .back{padding:8px 16px;background:#3498db;color:white;border:none;border-radius:6px;cursor:pointer}
+        .card{background:rgba(255,255,255,0.7);padding:30px;border-radius:16px;max-width:700px;margin:40px auto;text-align:center}
+        h1{margin:20px 0}
+        #avatar{max-width:220px;border-radius:10px;margin:15px 0}
+        textarea{width:100%;height:200px;padding:12px;border-radius:8px;margin:10px 0}
+        button{padding:10px 20px;background:#27ae60;color:white;border:none;border-radius:8px;cursor:pointer;margin:5px}
+        .delete-btn{background:#e74c3c}
+        #tip{margin-top:10px;font-size:14px;}
+    </style>
 </head>
 <body>
+    <button class="back" onclick="location.href='index.html'">← 返回主页</button>
+    <div class="card">
+        <h1 id="name">成员资料</h1>
+        
+        <input type="file" id="photo" accept="image/*">
+        <button onclick="uploadPhoto()">上传照片</button>
+        <button id="deletePhotoBtn" class="delete-btn" onclick="deletePhoto()" style="display:none">删除照片</button>
+        <div id="photoBox"></div>
+        <p id="tip"></p>
 
-<button class="back" onclick="location.href='index.html'">← 返回主页</button>
-<div class="card">
-    <h1 id="name">成员资料</h1>
-    
-    <input type="file" id="photo" accept="image/*">
-    <button onclick="uploadPhoto()">上传照片（自动压缩）</button>
-    <button id="deletePhotoBtn" class="delete-btn" onclick="deletePhoto()" style="display:none">删除当前照片</button>
-    <div id="photoBox"></div>
+        <h3>个人履历</h3>
+        <textarea id="intro" placeholder="请输入个人履历..."></textarea>
+        <button onclick="saveIntro()">保存履历</button>
+    </div>
 
-    <h3>个人履历</h3>
-    <textarea id="intro"></textarea>
-    <button onclick="saveIntro()">保存履历</button>
-</div>
+    <script>
+        const IMGBB_KEY = "aceb30e32004fff42105312105416d1d";
+        const JSONBIN_KEY = "$2a$10$udvwVnoyqjR54j7Pm7pdheeur4XmJN0cmI8fo2Mouqhb5K8cN6sHO";
+        const BIN_ID = "67d123456789abcdef123456";
 
-<script>
-// 随机背景
-function setRandomBackground() {
-    const random = Math.floor(Math.random() * 1000);
-    document.body.style.backgroundImage = `url(https://picsum.photos/1920/1080?random=${random})`;
-}
+        function setRandomBackground() {
+            const random = Math.floor(Math.random() * 1000);
+            document.body.style.backgroundImage = `url(https://picsum.photos/1920/1080?random=${random})`;
+        }
 
-// 压缩图片 + 转永久base64（修复不显示的核心！）
-function compressImage(file) {
-    return new Promise(resolve => {
-        const reader = new FileReader();
-        reader.onload = e => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let w = img.width, h = img.height;
-                if(w > 800) { h = h * 800 / w; w = 800; }
-                canvas.width = w; canvas.height = h;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0,0,w,h);
-                // 转成永久存储的base64，不再失效
-                resolve(canvas.toDataURL('image/jpeg', 0.6));
-            };
-            img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-    });
-}
+        function compressImage(file, maxWidth = 800, quality = 0.6) {
+            return new Promise(resolve => {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let w = img.width, h = img.height;
+                        if(w > 800) { h = h * 800 / w; w = 800; }
+                        canvas.width = w; canvas.height = h;
+                        canvas.getContext('2d').drawImage(img, 0,0,w,h);
+                        canvas.toBlob(blob => resolve(blob), 'image/jpeg', quality);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
 
-// 获取成员姓名
-const params = new URLSearchParams(location.search);
-const name = params.get('name') || '成员';
-document.getElementById('name').innerText = name;
-const key = 'member_' + name;
+        const params = new URLSearchParams(location.search);
+        const name = params.get('name') || '成员';
+        document.getElementById('name').innerText = name;
 
-// 加载数据
-function loadData() {
-    const data = JSON.parse(localStorage.getItem(key) || '{"photo":"","intro":""}');
-    const deleteBtn = document.getElementById('deletePhotoBtn');
-    const photoBox = document.getElementById('photoBox');
-    
-    if(data.photo) {
-        photoBox.innerHTML = `<img id="avatar" src="${data.photo}">`;
-        deleteBtn.style.display = 'inline-block';
-    } else {
-        photoBox.innerHTML = '';
-        deleteBtn.style.display = 'none';
-    }
-    document.getElementById('intro').value = data.intro || '';
-}
+        async function loadMemberData() {
+            const photoBox = document.getElementById('photoBox');
+            const deleteBtn = document.getElementById('deletePhotoBtn');
+            const tip = document.getElementById('tip');
+            tip.innerText = '正在加载...';
 
-// 上传照片（永久保存）
-async function uploadPhoto() {
-    const file = document.getElementById('photo').files[0];
-    if(!file) { alert('请选择照片！'); return; }
-    
-    // 压缩+转永久格式
-    const base64 = await compressImage(file);
-    const data = JSON.parse(localStorage.getItem(key) || '{"photo":"","intro":""}');
-    data.photo = base64;
-    localStorage.setItem(key, JSON.stringify(data));
-    
-    alert('照片上传成功！永久保存！');
-    loadData();
-}
+            try {
+                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                    headers: { "X-Master-Key": JSONBIN_KEY }
+                });
+                const data = await res.json();
+                const allMembers = data.record.members || {};
+                const memberData = allMembers[name] || { photo: "", intro: "" };
 
-// 删除照片
-function deletePhoto() {
-    if(confirm('确定删除照片？')) {
-        const data = JSON.parse(localStorage.getItem(key) || '{"photo":"","intro":""}');
-        data.photo = '';
-        localStorage.setItem(key, JSON.stringify(data));
-        loadData();
-        alert('已删除！');
-    }
-}
+                if(memberData.photo) {
+                    photoBox.innerHTML = `<img id="avatar" src="${memberData.photo}" alt="成员照片">`;
+                    deleteBtn.style.display = 'inline-block';
+                } else {
+                    photoBox.innerHTML = '';
+                    deleteBtn.style.display = 'none';
+                }
+                document.getElementById('intro').value = memberData.intro || '';
+                tip.innerText = '';
+            } catch (e) {
+                tip.innerText = `加载失败：${e.message}`;
+            }
+        }
 
-// 保存履历
-function saveIntro() {
-    const intro = document.getElementById('intro').value;
-    const data = JSON.parse(localStorage.getItem(key) || '{"photo":"","intro":""}');
-    data.intro = intro;
-    localStorage.setItem(key, JSON.stringify(data));
-    alert('履历保存成功！');
-}
+        async function uploadPhoto() {
+            const file = document.getElementById('photo').files[0];
+            const tip = document.getElementById('tip');
+            if(!file) { alert('请选择照片！'); return; }
+            
+            tip.innerText = '正在上传照片...';
+            try {
+                const compressedBlob = await compressImage(file);
+                const formData = new FormData();
+                formData.append('image', compressedBlob);
+                const uploadRes = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const uploadData = await uploadRes.json();
+                if (!uploadData.success) return;
+                
+                const photoUrl = uploadData.data.url;
+                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                    headers: { "X-Master-Key": JSONBIN_KEY }
+                });
+                const data = await res.json();
+                const allMembers = data.record.members || {};
+                allMembers[name] = { ...allMembers[name], photo: photoUrl };
 
-// 初始化
-setRandomBackground();
-loadData();
-</script>
+                await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                    method: 'PUT',
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Master-Key": JSONBIN_KEY
+                    },
+                    body: JSON.stringify({
+                        groupPhotos: data.record.groupPhotos || [],
+                        members: allMembers
+                    })
+                });
+
+                alert('照片上传成功！全员可查看');
+                loadMemberData();
+            } catch (e) {}
+        }
+
+        async function deletePhoto() {
+            if(!confirm('确定要删除照片吗？')) return;
+            try {
+                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                    headers: { "X-Master-Key": JSONBIN_KEY }
+                });
+                const data = await res.json();
+                const allMembers = data.record.members || {};
+                if (allMembers[name]) allMembers[name].photo = '';
+
+                await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                    method: 'PUT',
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Master-Key": JSONBIN_KEY
+                    },
+                    body: JSON.stringify({
+                        groupPhotos: data.record.groupPhotos || [],
+                        members: allMembers
+                    })
+                });
+                alert('照片已删除');
+                loadMemberData();
+            } catch (e) {}
+        }
+
+        async function saveIntro() {
+            const intro = document.getElementById('intro').value;
+            try {
+                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                    headers: { "X-Master-Key": JSONBIN_KEY }
+                });
+                const data = await res.json();
+                const allMembers = data.record.members || {};
+                allMembers[name] = { ...allMembers[name], intro: intro };
+
+                await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                    method: 'PUT',
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Master-Key": JSONBIN_KEY
+                    },
+                    body: JSON.stringify({
+                        groupPhotos: data.record.groupPhotos || [],
+                        members: allMembers
+                    })
+                });
+                alert('履历保存成功！');
+            } catch (e) {}
+        }
+
+        setRandomBackground();
+        window.onload = loadMemberData;
+    </script>
 </body>
 </html>
