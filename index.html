@@ -89,7 +89,7 @@
     <script>
         const IMGBB_KEY = "aceb30e32004fff42105312105416d1d";
         const JSONBIN_KEY = "$2a$10$udvwVnoyqjR54j7Pm7pdheeur4XmJN0cmI8fo2Mouqhb5K8cN6sHO";
-        const BIN_ID = "67d123456789abcdef123456";
+        const BIN_ID = "69af813bae596e708f731d1b";
 
         function setRandomBackground() {
             const random = Math.floor(Math.random() * 1000);
@@ -110,9 +110,9 @@
                     headers: { "X-Master-Key": JSONBIN_KEY }
                 });
                 const data = await res.json();
-                const photos = data.record.groupPhotos || [];
+                const photos = data?.record?.groupPhotos || [];
                 if (photos.length > 0) {
-                    container.innerHTML = `<img id="groupImg" src="${photos[0]}" alt="大合照">`;
+                    container.innerHTML = `<img id="groupImg" src="${photos[0]}" alt="大合照" style="max-width:400px;border-radius:8px;">`;
                 } else {
                     container.innerHTML = '<p>暂无大合照，点击上传</p>';
                 }
