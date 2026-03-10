@@ -45,7 +45,7 @@
     <script>
         const IMGBB_KEY = "aceb30e32004fff42105312105416d1d";
         const JSONBIN_KEY = "$2a$10$udvwVnoyqjR54j7Pm7pdheeur4XmJN0cmI8fo2Mouqhb5K8cN6sHO";
-        const BIN_ID = "67d123456789abcdef123456";
+        const BIN_ID = "69af813bae596e708f731d1b";
 
         function setRandomBackground() {
             const random = Math.floor(Math.random() * 1000);
@@ -75,32 +75,56 @@
         const name = params.get('name') || '成员';
         document.getElementById('name').innerText = name;
 
+        async function getCloudData() {
+            try {
+                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                    headers: { "X-Master-Key": JSONBIN_KEY }
+                });
+                const data = await res.json();
+                return {
+                    groupPhotos: data?.record?.groupPhotos || [],
+                    members: data?.record?.members || {}
+                };
+            } catch (e) {
+                return { groupPhotos: [], members: {} };
+            }
+        }
+
+        async function saveCloudData(data) {
+            try {
+                await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                    method: 'PUT',
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Master-Key": JSONBIN_KEY
+                    },
+                    body: JSON.stringify(data)
+                });
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
         async function loadMemberData() {
             const photoBox = document.getElementById('photoBox');
             const deleteBtn = document.getElementById('deletePhotoBtn');
             const tip = document.getElementById('tip');
             tip.innerText = '正在加载...';
 
-            try {
-                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-                    headers: { "X-Master-Key": JSONBIN_KEY }
-                });
-                const data = await res.json();
-                const allMembers = data.record.members || {};
-                const memberData = allMembers[name] || { photo: "", intro: "" };
+            const cloudData = await getCloudData();
+            const allMembers = cloudData.members;
+            const memberData = allMembers[name] || { photo: "", intro: "" };
 
-                if(memberData.photo) {
-                    photoBox.innerHTML = `<img id="avatar" src="${memberData.photo}" alt="成员照片">`;
-                    deleteBtn.style.display = 'inline-block';
-                } else {
-                    photoBox.innerHTML = '';
-                    deleteBtn.style.display = 'none';
-                }
-                document.getElementById('intro').value = memberData.intro || '';
-                tip.innerText = '';
-            } catch (e) {
-                tip.innerText = `加载失败：${e.message}`;
+            if(memberData.photo) {
+                photoBox.innerHTML = `<img id="avatar" src="${memberData.photo}" alt="成员照片">`;
+                deleteBtn.style.display = 'inline-block';
+            } else {
+                photoBox.innerHTML = '';
+                deleteBtn.style.display = 'none';
             }
+            document.getElementById('intro').value = memberData.intro || '';
+            tip.innerText = '';
         }
 
         async function uploadPhoto() {
@@ -118,82 +142,49 @@
                     body: formData
                 });
                 const uploadData = await uploadRes.json();
-                if (!uploadData.success) return;
+                if (!uploadData.success) throw new Error('上传失败');
                 
                 const photoUrl = uploadData.data.url;
-                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-                    headers: { "X-Master-Key": JSONBIN_KEY }
-                });
-                const data = await res.json();
-                const allMembers = data.record.members || {};
+                const cloudData = await getCloudData();
+                const allMembers = cloudData.members;
                 allMembers[name] = { ...allMembers[name], photo: photoUrl };
+                cloudData.members = allMembers;
 
-                await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-                    method: 'PUT',
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-Master-Key": JSONBIN_KEY
-                    },
-                    body: JSON.stringify({
-                        groupPhotos: data.record.groupPhotos || [],
-                        members: allMembers
-                    })
-                });
-
-                alert('照片上传成功！全员可查看');
-                loadMemberData();
-            } catch (e) {}
+                const saveSuccess = await saveCloudData(cloudData);
+                if (saveSuccess) {
+                    alert('照片上传成功！全员可查看');
+                    loadMemberData();
+                }
+            } catch (e) {
+                tip.innerText = `上传失败`;
+            }
         }
 
         async function deletePhoto() {
             if(!confirm('确定要删除照片吗？')) return;
-            try {
-                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-                    headers: { "X-Master-Key": JSONBIN_KEY }
-                });
-                const data = await res.json();
-                const allMembers = data.record.members || {};
-                if (allMembers[name]) allMembers[name].photo = '';
+            const cloudData = await getCloudData();
+            const allMembers = cloudData.members;
+            if (allMembers[name]) allMembers[name].photo = '';
+            cloudData.members = allMembers;
 
-                await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-                    method: 'PUT',
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-Master-Key": JSONBIN_KEY
-                    },
-                    body: JSON.stringify({
-                        groupPhotos: data.record.groupPhotos || [],
-                        members: allMembers
-                    })
-                });
+            const saveSuccess = await saveCloudData(cloudData);
+            if (saveSuccess) {
                 alert('照片已删除');
                 loadMemberData();
-            } catch (e) {}
+            }
         }
 
         async function saveIntro() {
             const intro = document.getElementById('intro').value;
-            try {
-                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-                    headers: { "X-Master-Key": JSONBIN_KEY }
-                });
-                const data = await res.json();
-                const allMembers = data.record.members || {};
-                allMembers[name] = { ...allMembers[name], intro: intro };
+            const cloudData = await getCloudData();
+            const allMembers = cloudData.members;
+            allMembers[name] = { ...allMembers[name], intro: intro };
+            cloudData.members = allMembers;
 
-                await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-                    method: 'PUT',
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-Master-Key": JSONBIN_KEY
-                    },
-                    body: JSON.stringify({
-                        groupPhotos: data.record.groupPhotos || [],
-                        members: allMembers
-                    })
-                });
+            const saveSuccess = await saveCloudData(cloudData);
+            if (saveSuccess) {
                 alert('履历保存成功！');
-            } catch (e) {}
+            }
         }
 
         setRandomBackground();
