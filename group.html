@@ -109,7 +109,7 @@
     <script>
         const IMGBB_KEY = "aceb30e32004fff42105312105416d1d";
         const JSONBIN_KEY = "$2a$10$udvwVnoyqjR54j7Pm7pdheeur4XmJN0cmI8fo2Mouqhb5K8cN6sHO";
-        const BIN_ID = "67d123456789abcdef123456";
+        const BIN_ID = "69af813bae596e708f731d1b";
 
         function setRandomBackground() {
             const random = Math.floor(Math.random() * 1000);
@@ -145,38 +145,62 @@
             });
         }
 
+        async function getCloudData() {
+            try {
+                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                    headers: { "X-Master-Key": JSONBIN_KEY }
+                });
+                const data = await res.json();
+                return {
+                    groupPhotos: data?.record?.groupPhotos || [],
+                    members: data?.record?.members || {}
+                };
+            } catch (e) {
+                return { groupPhotos: [], members: {} };
+            }
+        }
+
+        async function saveCloudData(data) {
+            try {
+                await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                    method: 'PUT',
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Master-Key": JSONBIN_KEY
+                    },
+                    body: JSON.stringify(data)
+                });
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
         async function loadGroupPhotos() {
             const container = document.getElementById('groupImgContainer');
             const tip = document.getElementById('tip');
             container.innerHTML = '';
             tip.innerText = '正在加载...';
 
-            try {
-                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-                    headers: { "X-Master-Key": JSONBIN_KEY }
-                });
-                const data = await res.json();
-                const photos = data.record.groupPhotos || [];
+            const cloudData = await getCloudData();
+            const photos = cloudData.groupPhotos;
 
-                if (photos.length === 0) {
-                    container.innerHTML = '<p>暂无大合照，请上传</p>';
-                    tip.innerText = '';
-                    return;
-                }
-
-                photos.forEach((src, index) => {
-                    const photoItem = document.createElement('div');
-                    photoItem.className = 'photo-item';
-                    photoItem.innerHTML = `
-                        <img src="${src}" alt="合照">
-                        <button class="delete-btn" onclick="deleteGroupPhoto(${index})">×</button>
-                    `;
-                    container.appendChild(photoItem);
-                });
-                tip.innerText = `共加载 ${photos.length} 张合照`;
-            } catch (e) {
-                tip.innerText = `加载失败：${e.message}`;
+            if (photos.length === 0) {
+                container.innerHTML = '<p>暂无大合照，请上传</p>';
+                tip.innerText = '';
+                return;
             }
+
+            photos.forEach((src, index) => {
+                const photoItem = document.createElement('div');
+                photoItem.className = 'photo-item';
+                photoItem.innerHTML = `
+                    <img src="${src}" alt="合照">
+                    <button class="delete-btn" onclick="deleteGroupPhoto(${index})">×</button>
+                `;
+                container.appendChild(photoItem);
+            });
+            tip.innerText = `共加载 ${photos.length} 张合照`;
         }
 
         async function uploadGroupPhoto() {
@@ -194,17 +218,8 @@
             const totalCount = files.length;
             tip.innerText = `正在上传...0/${totalCount}`;
 
-            let existPhotos = [];
-            try {
-                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-                    headers: { "X-Master-Key": JSONBIN_KEY }
-                });
-                const data = await res.json();
-                existPhotos = data.record.groupPhotos || [];
-            } catch (e) {
-                tip.innerText = `获取云端数据失败：${e.message}`;
-                return;
-            }
+            const cloudData = await getCloudData();
+            const existPhotos = cloudData.groupPhotos;
 
             for (let i = 0; i < files.length; i++) {
                 try {
@@ -221,56 +236,38 @@
                         successCount++;
                         tip.innerText = `正在上传...${successCount}/${totalCount}`;
                     }
-                } catch (e) {}
+                } catch (e) {
+                    tip.innerText += `第${i+1}张图上传失败\n`;
+                }
             }
 
-            try {
-                await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-                    method: 'PUT',
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-Master-Key": JSONBIN_KEY
-                    },
-                    body: JSON.stringify({
-                        groupPhotos: existPhotos,
-                        members: (await (await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-                            headers: { "X-Master-Key": JSONBIN_KEY }
-                        })).json()).record.members || {}
-                    })
-                });
+            cloudData.groupPhotos = existPhotos;
+            const saveSuccess = await saveCloudData(cloudData);
+            
+            if (saveSuccess) {
                 tip.innerText = `✅ 上传完成！成功保存${successCount}/${totalCount}张，全员可查看`;
                 input.value = '';
                 loadGroupPhotos();
-            } catch (e) {
-                tip.innerText = `保存到云端失败：${e.message}`;
+            } else {
+                tip.innerText = `❌ 保存到云端失败`;
             }
         }
 
         async function deleteGroupPhoto(index) {
             if (!confirm('确定要删除这张合照吗？')) return;
             
-            try {
-                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-                    headers: { "X-Master-Key": JSONBIN_KEY }
-                });
-                const data = await res.json();
-                const photos = data.record.groupPhotos || [];
-                photos.splice(index, 1);
+            const cloudData = await getCloudData();
+            const photos = cloudData.groupPhotos;
+            photos.splice(index, 1);
+            cloudData.groupPhotos = photos;
 
-                await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-                    method: 'PUT',
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-Master-Key": JSONBIN_KEY
-                    },
-                    body: JSON.stringify({
-                        groupPhotos: photos,
-                        members: data.record.members || {}
-                    })
-                });
+            const saveSuccess = await saveCloudData(cloudData);
+            if (saveSuccess) {
                 alert('删除成功！');
                 loadGroupPhotos();
-            } catch (e) {}
+            } else {
+                alert('删除失败');
+            }
         }
 
         setRandomBackground();
