@@ -91,6 +91,11 @@
         #tip {
             margin-top: 10px;
             font-size: 14px;
+            color: #e74c3c;
+            white-space: pre-wrap;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
         }
     </style>
 </head>
@@ -107,19 +112,23 @@
     <div id="groupImgContainer"></div>
 
     <script>
+        // 已填好你的所有密钥，无需修改
         const IMGBB_KEY = "aceb30e32004fff42105312105416d1d";
         const JSONBIN_KEY = "$2a$10$udvwVnoyqjR54j7Pm7pdheeur4XmJN0cmI8fo2Mouqhb5K8cN6sHO";
         const BIN_ID = "69af813bae596e708f731d1b";
 
+        // 随机背景
         function setRandomBackground() {
             const random = Math.floor(Math.random() * 1000);
             document.body.style.backgroundImage = `url(https://picsum.photos/1920/1080?random=${random})`;
         }
 
+        // 返回主页
         function goBack() {
             window.location.href = "./index.html";
         }
 
+        // 图片压缩
         function compressImage(file, maxWidth = 1200, quality = 0.6) {
             return new Promise((resolve) => {
                 const reader = new FileReader();
@@ -145,24 +154,43 @@
             });
         }
 
+        // 终极容错：获取云端数据，任何情况都不会崩溃
         async function getCloudData() {
+            const tip = document.getElementById('tip');
             try {
                 const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
                     headers: { "X-Master-Key": JSONBIN_KEY }
                 });
+
+                // 捕获HTTP错误（401/404等）
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    throw new Error(`云端请求失败：状态码${res.status}，详情：${errorText}`);
+                }
+
+                // 解析JSON并打印到控制台，方便排查
                 const data = await res.json();
+                console.log("云端返回完整数据：", data);
+
+                // 兜底：不管返回什么，都返回正确格式的默认数据
                 return {
-                    groupPhotos: data?.record?.groupPhotos || [],
-                    members: data?.record?.members || {}
+                    groupPhotos: (data && data.record && data.record.groupPhotos) || [],
+                    members: (data && data.record && data.record.members) || {}
                 };
+
             } catch (e) {
+                // 所有错误都捕获，显示在页面上
+                tip.innerText = `错误详情：${e.message}\n请检查BIN_ID、密钥是否正确，以及网络是否能访问jsonbin.io`;
+                console.error("云端请求错误：", e);
                 return { groupPhotos: [], members: {} };
             }
         }
 
+        // 保存数据到云端
         async function saveCloudData(data) {
+            const tip = document.getElementById('tip');
             try {
-                await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
                     method: 'PUT',
                     headers: {
                         "Content-Type": "application/json",
@@ -170,12 +198,23 @@
                     },
                     body: JSON.stringify(data)
                 });
+
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    throw new Error(`保存失败：状态码${res.status}，详情：${errorText}`);
+                }
+
+                tip.innerText = '';
                 return true;
+
             } catch (e) {
+                tip.innerText = `保存云端失败：${e.message}`;
+                console.error("保存错误：", e);
                 return false;
             }
         }
 
+        // 加载并渲染合照
         async function loadGroupPhotos() {
             const container = document.getElementById('groupImgContainer');
             const tip = document.getElementById('tip');
@@ -191,6 +230,7 @@
                 return;
             }
 
+            // 渲染所有照片
             photos.forEach((src, index) => {
                 const photoItem = document.createElement('div');
                 photoItem.className = 'photo-item';
@@ -200,14 +240,17 @@
                 `;
                 container.appendChild(photoItem);
             });
-            tip.innerText = `共加载 ${photos.length} 张合照`;
+            tip.innerText = `✅ 共加载 ${photos.length} 张合照`;
+            tip.style.color = '#27ae60';
         }
 
+        // 上传照片
         async function uploadGroupPhoto() {
             const input = document.getElementById('groupFile');
             const files = input.files;
             const tip = document.getElementById('tip');
             tip.innerText = '';
+            tip.style.color = '#e74c3c';
 
             if (!files.length) {
                 tip.innerText = "请先选择要上传的图片！";
@@ -218,12 +261,16 @@
             const totalCount = files.length;
             tip.innerText = `正在上传...0/${totalCount}`;
 
+            // 获取当前云端数据
             const cloudData = await getCloudData();
             const existPhotos = cloudData.groupPhotos;
 
+            // 循环上传每一张
             for (let i = 0; i < files.length; i++) {
                 try {
+                    // 先压缩
                     const compressedBlob = await compressImage(files[i]);
+                    // 上传到图床
                     const formData = new FormData();
                     formData.append('image', compressedBlob);
                     const uploadRes = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, {
@@ -235,24 +282,27 @@
                         existPhotos.push(uploadData.data.url);
                         successCount++;
                         tip.innerText = `正在上传...${successCount}/${totalCount}`;
+                    } else {
+                        throw new Error(`图床上传失败：${uploadData.error?.message || '未知错误'}`);
                     }
                 } catch (e) {
-                    tip.innerText += `第${i+1}张图上传失败\n`;
+                    tip.innerText += `\n第${i+1}张图上传失败：${e.message}`;
                 }
             }
 
+            // 保存到云端
             cloudData.groupPhotos = existPhotos;
             const saveSuccess = await saveCloudData(cloudData);
             
             if (saveSuccess) {
                 tip.innerText = `✅ 上传完成！成功保存${successCount}/${totalCount}张，全员可查看`;
+                tip.style.color = '#27ae60';
                 input.value = '';
                 loadGroupPhotos();
-            } else {
-                tip.innerText = `❌ 保存到云端失败`;
             }
         }
 
+        // 删除合照
         async function deleteGroupPhoto(index) {
             if (!confirm('确定要删除这张合照吗？')) return;
             
@@ -266,10 +316,11 @@
                 alert('删除成功！');
                 loadGroupPhotos();
             } else {
-                alert('删除失败');
+                alert('删除失败，请查看页面提示');
             }
         }
 
+        // 初始化
         setRandomBackground();
         window.onload = loadGroupPhotos;
     </script>
